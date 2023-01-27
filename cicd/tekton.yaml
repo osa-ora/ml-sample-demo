@@ -1,0 +1,190 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: ml-plate-detection-pipeline
+spec:
+  finally:
+    - name: slack-final-notification
+      params:
+        - name: webhook-secret
+          value: webhook-secret
+        - name: message
+          value: >-
+            Pipeline execution results $(tasks.status) for $(params.git_url) -
+            $(params.git_branch)
+        - name: bot-name
+          value: Tekton Bot
+        - name: icon-emoji
+          value: ':robot_face:'
+      taskRef:
+        kind: Task
+        name: send-to-webhook-slack
+      when:
+        - input: $(params.slack_enabled)
+          operator: in
+          values:
+            - 'true'
+  params:
+    - default: ooransa-dev
+      description: Project Name
+      name: proj-name
+      type: string
+    - default: plate-detection-service
+      description: Application Name
+      name: app-name
+      type: string
+    - default: 'false'
+      description: First Deployment
+      name: first-run
+      type: string
+    - default: 'https://github.com/osa-ora/ml-sample-demo'
+      description: Git Repo URL
+      name: git_url
+      type: string
+    - default: main
+      description: Git Branch
+      name: git_branch
+      type: string
+    - default: 'false'
+      description: Slack Enabled Flag
+      name: slack_enabled
+      type: string
+  tasks:
+    - name: git-clone
+      params:
+        - name: url
+          value: $(params.git_url)
+        - name: revision
+          value: $(params.git_branch)
+        - name: submodules
+          value: 'true'
+        - name: depth
+          value: '1'
+        - name: sslVerify
+          value: 'true'
+        - name: crtFileName
+          value: ca-bundle.crt
+        - name: deleteExisting
+          value: 'true'
+        - name: verbose
+          value: 'true'
+        - name: gitInitImage
+          value: >-
+            registry.redhat.io/openshift-pipelines/pipelines-git-init-rhel8@sha256:a538c423e7a11aae6ae582a411fdb090936458075f99af4ce5add038bb6983e8
+        - name: userHome
+          value: /tekton/home
+      runAfter:
+        - slack-start-notification
+      taskRef:
+        kind: ClusterTask
+        name: git-clone-1-8-0
+      workspaces:
+        - name: output
+          workspace: my-app-workspace
+    - name: build-s2i-python
+      params:
+        - name: VERSION
+          value: 3.8-ubi7
+        - name: PATH_CONTEXT
+          value: .
+        - name: TLSVERIFY
+          value: 'true'
+        - name: IMAGE
+          value: >-
+            image-registry.openshift-image-registry.svc:5000/$(params.proj-name)/$(params.app-name)
+        - name: BUILDER_IMAGE
+          value: >-
+            registry.redhat.io/rhel8/buildah@sha256:0a86ecbdfbe86e9d225b7fe4b090a0dd6d323f8afdfdf2bd933ff223ddb53320
+        - name: SKIP_PUSH
+          value: 'false'
+        - name: ENV_VARS
+          value: []
+      runAfter:
+        - git-clone
+      taskRef:
+        kind: ClusterTask
+        name: s2i-python-1-8-0
+      workspaces:
+        - name: source
+          workspace: my-app-workspace
+    - name: deploy-app
+      params:
+        - name: SCRIPT
+          value: >-
+            oc new-app --docker-image
+            image-registry.openshift-image-registry.svc:5000/$(params.proj-name)/$(params.app-name)
+            -n $(params.proj-name)
+        - name: VERSION
+          value: latest
+      runAfter:
+        - build-s2i-python
+      taskRef:
+        kind: ClusterTask
+        name: openshift-client-1-8-0
+      when:
+        - input: $(params.first-run)
+          operator: in
+          values:
+            - 'true'
+    - name: expose-app
+      params:
+        - name: SCRIPT
+          value: oc expose service/$(params.app-name) -n $(params.proj-name)
+        - name: VERSION
+          value: latest
+      runAfter:
+        - deploy-app
+      taskRef:
+        kind: ClusterTask
+        name: openshift-client-1-8-0
+      when:
+        - input: $(params.first-run)
+          operator: in
+          values:
+            - 'true'
+    - name: wait-for-deployment
+      params:
+        - name: SCRIPT
+          value: sleep 25
+        - name: VERSION
+          value: latest
+      runAfter:
+        - expose-app
+      taskRef:
+        kind: ClusterTask
+        name: openshift-client-1-8-0
+    - name: smoke-test
+      params:
+        - name: SCRIPT
+          value: >-
+            curl $(oc get route $(params.app-name) -n=$(params.proj-name) -o
+            jsonpath='{.spec.host}')/ | grep 'ok'
+        - name: VERSION
+          value: latest
+      runAfter:
+        - wait-for-deployment
+      taskRef:
+        kind: ClusterTask
+        name: openshift-client-1-8-0
+    - name: slack-start-notification
+      params:
+        - name: webhook-secret
+          value: webhook-secret
+        - name: message
+          value: >-
+            Pipeline execution started for $(params.git_url) -
+            $(params.git_branch)
+        - name: bot-name
+          value: Tekton Bot
+        - name: icon-emoji
+          value: ':robot_face:'
+      taskRef:
+        kind: Task
+        name: send-to-webhook-slack
+      when:
+        - input: $(params.slack_enabled)
+          operator: in
+          values:
+            - 'true'
+  workspaces:
+    - name: my-app-workspace
