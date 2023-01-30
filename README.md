@@ -9,7 +9,7 @@ The tutorial for building this application is also here:
 https://redhat-scholars.github.io/rhods-lp-workshop/rhods-lp-workshop/index.html
 
 
-The project is detecting the car plate numbers, here we will demo this application over OpenShift to show how we can utilize the power of OpenShift in handling the different milestone in ML application.
+The project is detecting the car plate numbers, here we will demo this application over OpenShift to show how we can utilize the power of OpenShift in handling the different milestones in ML application.
 
 
 <img width="583" alt="Screen Shot 2023-01-27 at 17 51 25" src="https://user-images.githubusercontent.com/18471537/215102893-4a08f502-4d32-4d96-9b44-62383c59e110.png">
@@ -35,11 +35,11 @@ After authentication and authorization, you will see Red Hat OpenShift Data Scie
 
 From the console, lunch the Jupyter notebook application and let's create a notebook to work on.
 
-As you can see the notebook already come with different notebook server template to use that's optimized and liberaries are pre-installed so we can pick what we need or we can build our own custom template.
+As you can see the notebook already come with different notebook server template to use that's optimized and libraries are pre-installed so we can pick what we need or we can build our own custom template.
 
 <img width="399" alt="Screen Shot 2023-01-27 at 17 59 12" src="https://user-images.githubusercontent.com/18471537/215104574-9890d109-713a-4d65-956d-bdb866c402ba.png">
 
-Select options as above Tensor Flow and small as this is sandbox environment. Once the server is started, you need to check our the code by going to the Git section and pick clone the code
+Select options as above Tensor Flow and small as this is a sandbox environment. Once the server is started, you need to check our the code by going to the Git section and pick clone the code
 
 <img width="364" alt="Screen Shot 2023-01-27 at 18 02 03" src="https://user-images.githubusercontent.com/18471537/215105180-3a68a8a3-a200-49b1-9b3c-c3811d9e0223.png">
 
@@ -55,7 +55,7 @@ You can now run the Notebook using the file : 02_License-plate-recognition.ipynb
 
 You can upload any car images with a plate to the dataset/images folder and run the last notebook cell to test the detection of that new car as well.
 
-Here you can write, modify, commit and test your ML app, and this comes fullt supported from Red Hat and optimized to work with the underlying capavilities such as GPUs (using Nvidia GPU OpenShift Operator).
+Here you can write, modify, commit and test your ML app, and this comes fully supported from Red Hat and optimized to work with the underlying capabilities such as GPUs (using Nvidia GPU OpenShift Operator).
 
 Once you have a mature ML model, you can write your application to utilize it as in this example, all the previous cell codes are unified into a single prediction.py file, which can now be expose to do the prediction by using a flask Python app that can expose the APIs and route the request to the prediction application with a newly added predict function in prediction.py.  
 
@@ -65,21 +65,21 @@ Check the flask application APIs in the file: wsgi.py.
 
 <img width="406" alt="Screen Shot 2023-01-27 at 18 29 40" src="https://user-images.githubusercontent.com/18471537/215110949-eebbe2f8-5405-4650-b24d-65ad0287e93b.png">
 
-As you can see 2 APIs one is mapped to the root "/" which is used for healthcheck the application and it return ok, while the other APIs is mapped to "prediction" which send json input to the predict function in prediction.py.
+As you can see 2 APIs, one is mapped to the root "/" which is used for health check the application and it returns ok, while the other APIs is mapped to "prediction" which sends json input to the predict function in prediction.py.
 
 Now, to run this application, you can use the file: 03_LPR_run_application.ipynb which will listen to API calls.
 To test the application, open the 04_LPR_test_application.ipynb file and follow the instructions.
 
-All the previous activities are part of developing a ML application, we assumed the dataset already gathered and the model already pre-built but you can modify, improve and change it for further experience this part of ML lifecyle.
+All the previous activities are part of developing a ML application, we assumed the dataset was already gathered and the model already pre-built but you can modify, improve and change it for further experience of this part of ML lifecycle.
 In most of the cases these days most of the models are already written by different people or vendors and you can just optimize or update based on specific requirements.
 
 ## 4) ML Deployment
 
 Once we have and ready ML application/APIs we need to experience how to deploy them on OpenShift.
-You have 2 choices, one is utilizing the Source2Image OpenShift capability and give all the build process to OpenShift or build a pipeline so you can enrich the lifecycle and automate many parts and integrate many options such as security and others.
+You have 2 choices, one is utilizing the Source2Image OpenShift capability and giving all the build process to OpenShift or build a pipeline so you can enrich the lifecycle and automate many parts and integrate many options such as security and others.
 
 ### Using Source2Image
-Got to OpenShift console, select Add and then select from Git Repository:
+Open OpenShift Developer console, select "Add" and then select "from Git" Repository:
 
 <img width="179" alt="Screen Shot 2023-01-27 at 18 41 31" src="https://user-images.githubusercontent.com/18471537/215113469-8ef128f5-bf04-4f1c-8741-11da0d6cb864.png">
 
@@ -88,9 +88,9 @@ In the Git Repo URL field, enter: "https://github.com/osa-ora/ml-sample-demo"
 Select "main" branch
 From the Builder Image version list, select "Python 3.8-ubi7"
 Resources type “Deployment”
-Then click on create button.
+Then click on the create button.
 
-Once created, click on the route to open the root which is mapped to the healthcheck API and we can see the status is ok.
+Once created, click on the route to open the root which is mapped to the health check API and we can see the status is ok.
 
 Copy the route URL and invoke it with any car images that you have to test the application. (should be either png or jpg)
 
@@ -98,13 +98,23 @@ Copy the route URL and invoke it with any car images that you have to test the a
 (echo -n '{"image": "'; base64 {IMAGE-NAME-HERE}; echo '"}') | curl -H "Content-Type: application/json" -d @- {{ROUTE-URL-HERE}/predictions
 
 //if everything is okay it will return response like:
-{"prediction":"63518"}
+{"prediction":"RESULT"}
 ```
 
 Now, we can enable our application to trigger the BuildConfig for our application so with any new Git commits, the application can be built and deployed automatically.
 
 ### Using OpenShift Pipeline
 By using OpenShift Pipeline based on Tekton we can incorporate many options such as notification, testing, security scanning, etc.
+
+The pipelines will do the following:
+
+Send slack message "Started" (if slack parameter is set to true)
+Git the code from the GitHub repository
+Build the application using source2image
+Deploy the application (for first time pipeline execution)
+Expose a route to the application (for first time pipeline execution)
+Run health check to test the application is running
+Send a final slack message with the pipeline results (if slack parameter is set to true)
 
 
 ```
@@ -123,6 +133,24 @@ This will create and execute the pipeline in the specified project. If everythin
 <img width="1470" alt="Screen Shot 2023-01-27 at 16 50 13" src="https://user-images.githubusercontent.com/18471537/215119602-3bdf1d7f-9d35-431c-b501-35f80385e8a4.png">
 
 Now, we can automate the build and deployment using the tekton pipeline for more efficient ML-OPs.
+<img width="301" alt="Screen Shot 2023-01-30 at 08 28 19" src="https://user-images.githubusercontent.com/18471537/215387548-3157459e-e60f-44eb-a87c-9ee2cb89f151.png">
 
+Copy the route URL and invoke it with any car images that you have to test the application. (should be either png or jpg)
+
+```
+(echo -n '{"image": "'; base64 {IMAGE-NAME-HERE}; echo '"}') | curl -H "Content-Type: application/json" -d @- {{ROUTE-URL-HERE}/predictions
+
+//if everything is okay it will return response like:
+{"prediction":"RESULT"}
+```
+
+The full tutorial from Red Hat can be found here:
+https://redhat-scholars.github.io/cloudnative-tutorials/openshift-data-science-lp-recognition.html
+
+Another tutorial for object detection with more advanced integration using Red Hat Kafka Managed Service: 
+https://redhat-scholars.github.io/cloudnative-tutorials/openshift-data-science-object-detection.html
+
+Other useful workshops and materials about Red Hat OpenShift Data Science: 
+https://developers.redhat.com/learn/openshift-data-science
 
 
