@@ -2,7 +2,7 @@
 
 Red Hat OpenShift Data Science (RHODS) is an easy-to-configure MLOps platform for building and deploying AI/ML models and intelligent applications. In this demo we will go through how to use it to build and deploy ML applications easily.  
 
-This sample is based on fork from Red Hst Git Repo:  
+This sample demo is based on fork from Red Hat Git Repo:  
 https://redhat-scholars.github.io/rhods-lp-workshop/rhods-lp-workshop/index.html
 
 The tutorial for building this application is also here:
